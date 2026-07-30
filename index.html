@@ -1,0 +1,1705 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LLM JSON Repair - fix broken model output and stop it happening again</title>
+<meta name="description" content="Paste the malformed JSON an LLM just returned. Get valid JSON back, a named diagnosis for every repair, and the exact prompt or API change that prevents each failure mode at the source. Runs entirely in your browser.">
+<link rel="canonical" href="https://0xelitesystem.github.io/llm-json-repair/">
+<meta property="og:type" content="website">
+<meta property="og:title" content="LLM JSON Repair">
+<meta property="og:description" content="Repair malformed LLM JSON output, name every failure mode, and get the prompt or API change that prevents it next time. Single file, nothing uploaded.">
+<meta property="og:url" content="https://0xelitesystem.github.io/llm-json-repair/">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%230d1117'/><text x='50' y='68' font-size='52' text-anchor='middle' fill='%2340c8b8' font-family='monospace'>{!}</text></svg>">
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "SoftwareApplication",
+  "name": "LLM JSON Repair",
+  "description": "Repairs malformed JSON produced by language models, names every failure mode it fixed, and maps each one to the prompt or API change that prevents it.",
+  "url": "https://0xelitesystem.github.io/llm-json-repair/",
+  "applicationCategory": "DeveloperApplication",
+  "operatingSystem": "Any",
+  "offers": {
+    "@type": "Offer",
+    "price": "0",
+    "priceCurrency": "USD"
+  }
+}
+</script>
+<style>
+:root {
+  --bg: #0a0e13;
+  --bg-grid: #10161e;
+  --surface: #111820;
+  --surface-2: #0d131a;
+  --surface-3: #172029;
+  --ink: #e6edf3;
+  --ink-soft: #a9b6c3;
+  --ink-faint: #74838f;
+  --rule: #22303c;
+  --rule-soft: #1a242e;
+  --accent: #40c8b8;
+  --accent-deep: #2aa899;
+  --accent-ink: #04211e;
+  --amber: #e0a33e;
+  --rose: #f0788c;
+  --red: #ef6b6b;
+  --green: #62c07a;
+  --blue: #6ba7f5;
+  --violet: #b48bf0;
+  --shadow: 0 1px 0 rgba(255,255,255,0.03), 0 10px 28px rgba(0,0,0,0.45);
+  --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
+  --sans: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+}
+:root[data-theme="light"] {
+  --bg: #f6f7f4;
+  --bg-grid: #eceee8;
+  --surface: #ffffff;
+  --surface-2: #f2f4f0;
+  --surface-3: #e8ebe5;
+  --ink: #131a20;
+  --ink-soft: #3c4a55;
+  --ink-faint: #6a7783;
+  --rule: #d3d9d2;
+  --rule-soft: #e2e7e0;
+  --accent: #0d7f72;
+  --accent-deep: #096a5f;
+  --accent-ink: #ffffff;
+  --amber: #96631a;
+  --rose: #b02f4a;
+  --red: #b02020;
+  --green: #1f6b34;
+  --blue: #2359a8;
+  --violet: #6b3fb0;
+  --shadow: 0 1px 2px rgba(20,30,40,0.06), 0 8px 20px rgba(20,30,40,0.07);
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+[hidden] { display: none !important; }
+html { -webkit-text-size-adjust: 100%; }
+body {
+  background:
+    linear-gradient(var(--bg-grid) 1px, transparent 1px) 0 0 / 100% 40px,
+    var(--bg);
+  color: var(--ink);
+  font-family: var(--sans);
+  line-height: 1.55;
+  min-height: 100vh;
+  padding: 1.5rem 1rem 3rem;
+  overflow-x: hidden;
+}
+.shell { max-width: 1120px; margin: 0 auto; }
+a { color: var(--accent); text-decoration: none; border-bottom: 1px solid transparent; }
+a:hover, a:focus-visible { border-bottom-color: currentColor; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 3px; }
+
+/* header */
+.top {
+  display: flex; flex-wrap: wrap; gap: 1rem;
+  align-items: flex-start; justify-content: space-between;
+  padding-bottom: 1.1rem; margin-bottom: 1.4rem;
+  border-bottom: 1px solid var(--rule);
+}
+.brand { display: flex; gap: 0.85rem; align-items: flex-start; min-width: 0; }
+.mark {
+  font-family: var(--mono); font-size: 1.05rem; font-weight: 700;
+  color: var(--accent); background: var(--surface); border: 1px solid var(--rule);
+  border-radius: 8px; padding: 0.4rem 0.55rem; line-height: 1; flex: none;
+}
+h1 { font-size: 1.4rem; letter-spacing: -0.015em; font-weight: 650; }
+.sub { color: var(--ink-soft); font-size: 0.92rem; max-width: 62ch; margin-top: 0.2rem; }
+h2 { font-size: 0.95rem; letter-spacing: 0.02em; text-transform: uppercase; color: var(--ink-faint); font-weight: 600; }
+h3 { font-size: 1rem; font-weight: 600; }
+
+/* buttons */
+button {
+  font: inherit; font-size: 0.86rem; cursor: pointer;
+  background: var(--surface-3); color: var(--ink);
+  border: 1px solid var(--rule); border-radius: 6px;
+  padding: 0.5rem 0.9rem; line-height: 1.2;
+}
+button:hover { border-color: var(--accent); }
+button.primary { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); font-weight: 600; }
+button.primary:hover { background: var(--accent-deep); border-color: var(--accent-deep); }
+button.ghost { background: transparent; color: var(--ink-soft); }
+button.tiny { font-size: 0.78rem; padding: 0.35rem 0.65rem; }
+button.copied { border-color: var(--green); color: var(--green); }
+.row { display: flex; flex-wrap: wrap; gap: 0.55rem; align-items: center; }
+.kbd { font-family: var(--mono); font-size: 0.75rem; color: var(--ink-faint); }
+
+/* panels */
+.panel {
+  background: var(--surface); border: 1px solid var(--rule);
+  border-radius: 10px; padding: 1rem; box-shadow: var(--shadow);
+  margin-bottom: 1.1rem;
+}
+.panel-head {
+  display: flex; flex-wrap: wrap; gap: 0.5rem 1rem;
+  align-items: baseline; justify-content: space-between; margin-bottom: 0.6rem;
+}
+label { font-size: 0.95rem; font-weight: 600; }
+.hint { color: var(--ink-faint); font-size: 0.82rem; }
+textarea {
+  width: 100%; min-height: 210px; resize: vertical;
+  font-family: var(--mono); font-size: 0.83rem; line-height: 1.5;
+  color: var(--ink); background: var(--surface-2);
+  border: 1px solid var(--rule); border-radius: 8px; padding: 0.7rem 0.8rem;
+  margin-bottom: 0.7rem;
+}
+textarea::placeholder { color: var(--ink-faint); }
+pre {
+  font-family: var(--mono); font-size: 0.8rem; line-height: 1.5;
+  background: var(--surface-2); border: 1px solid var(--rule-soft);
+  border-radius: 8px; padding: 0.7rem 0.8rem;
+  overflow-x: auto; max-height: 22rem; overflow-y: auto;
+  white-space: pre; color: var(--ink);
+}
+code { font-family: var(--mono); font-size: 0.86em; background: var(--surface-3); padding: 0.08em 0.32em; border-radius: 4px; }
+
+/* verdict */
+.verdict {
+  border: 1px solid var(--rule); border-left: 4px solid var(--accent);
+  background: var(--surface); border-radius: 10px; padding: 0.9rem 1rem;
+  margin-bottom: 1.1rem; box-shadow: var(--shadow);
+}
+.verdict.ok { border-left-color: var(--green); }
+.verdict.repaired { border-left-color: var(--amber); }
+.verdict.fail { border-left-color: var(--red); }
+.verdict h3 { margin-bottom: 0.25rem; }
+.verdict p { color: var(--ink-soft); font-size: 0.9rem; }
+.verify-line { font-family: var(--mono); font-size: 0.8rem; color: var(--ink); margin-top: 0.5rem; }
+.verify-line .tick { color: var(--green); font-weight: 700; }
+.verify-line .cross { color: var(--red); font-weight: 700; }
+
+/* before / after */
+.grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 1.1rem; margin-bottom: 1.1rem; }
+.grid2 > .panel { margin-bottom: 0; min-width: 0; }
+
+/* findings */
+.finding {
+  background: var(--surface); border: 1px solid var(--rule);
+  border-left: 4px solid var(--rule); border-radius: 10px;
+  padding: 0.85rem 1rem; margin-bottom: 0.7rem; box-shadow: var(--shadow);
+}
+.finding.cat-wrapper { border-left-color: var(--blue); }
+.finding.cat-syntax { border-left-color: var(--amber); }
+.finding.cat-literal { border-left-color: var(--violet); }
+.finding.cat-number { border-left-color: var(--green); }
+.finding.cat-semantic { border-left-color: var(--rose); }
+.finding.cat-fatal { border-left-color: var(--red); }
+.finding-head { display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: baseline; justify-content: space-between; }
+.finding-name { font-family: var(--mono); font-size: 0.9rem; font-weight: 600; }
+.badge {
+  font-family: var(--mono); font-size: 0.7rem; letter-spacing: 0.04em;
+  border: 1px solid var(--rule); border-radius: 99px;
+  padding: 0.1rem 0.5rem; color: var(--ink-faint); white-space: nowrap;
+}
+.occ { list-style: none; margin: 0.5rem 0 0; }
+.occ li { font-size: 0.86rem; color: var(--ink-soft); padding: 0.18rem 0 0.18rem 0.9rem; position: relative; }
+.occ li::before { content: ">"; position: absolute; left: 0; color: var(--ink-faint); font-family: var(--mono); }
+.occ .where { font-family: var(--mono); font-size: 0.78rem; color: var(--ink-faint); }
+.prevent {
+  margin-top: 0.6rem; padding-top: 0.55rem; border-top: 1px dashed var(--rule);
+  font-size: 0.88rem; color: var(--ink);
+}
+.prevent strong { color: var(--accent); font-weight: 650; }
+
+/* empty state + notes */
+.empty {
+  border: 1px dashed var(--rule); border-radius: 10px; padding: 1.1rem;
+  color: var(--ink-soft); font-size: 0.9rem; background: var(--surface-2);
+  margin-bottom: 1.1rem;
+}
+.empty h3 { color: var(--ink); margin-bottom: 0.4rem; }
+.empty ul { margin: 0.5rem 0 0 1.1rem; }
+.empty li { padding: 0.1rem 0; }
+.notes { border-top: 1px solid var(--rule); margin-top: 1.6rem; padding-top: 1.1rem; }
+.notes h2 { margin-bottom: 0.5rem; }
+.notes p { color: var(--ink-soft); font-size: 0.9rem; max-width: 78ch; margin-bottom: 0.6rem; }
+.notes strong { color: var(--ink); }
+footer {
+  margin-top: 1.8rem; padding-top: 1rem; border-top: 1px solid var(--rule);
+  display: flex; flex-wrap: wrap; gap: 0.5rem 1.2rem;
+  font-size: 0.85rem; color: var(--ink-faint);
+}
+.sr-only {
+  position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
+  overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0;
+}
+@media (max-width: 760px) {
+  .grid2 { grid-template-columns: 1fr; }
+  h1 { font-size: 1.2rem; }
+  body { padding: 1rem 0.7rem 2.5rem; }
+  .panel { padding: 0.8rem; }
+}
+@media (max-width: 380px) {
+  .mark { display: none; }
+  button { padding: 0.45rem 0.7rem; }
+}
+</style>
+</head>
+<body>
+<div class="shell">
+
+<header class="top">
+  <div class="brand">
+    <span class="mark" aria-hidden="true">{!}</span>
+    <div>
+      <h1>LLM JSON Repair</h1>
+      <p class="sub">Paste the broken JSON a language model just handed you. Get valid JSON back, a named diagnosis for every repair, and the prompt or API change that prevents each failure at the source.</p>
+    </div>
+  </div>
+  <button id="themeBtn" class="ghost" type="button" aria-pressed="false">Light mode</button>
+</header>
+
+<section class="panel">
+  <div class="panel-head">
+    <label for="src">Model output</label>
+    <span class="hint">Paste it exactly as you got it. Fences, preamble, comments and cut-off endings are all expected.</span>
+  </div>
+  <textarea id="src" spellcheck="false" autocapitalize="off" autocomplete="off"
+    placeholder="Here is the JSON you asked for:&#10;&#10;{&#10;  vendor: 'Acme',&#10;  &quot;paid&quot;: False,&#10;}"></textarea>
+  <div class="row">
+    <button id="repairBtn" class="primary" type="button">Repair and diagnose</button>
+    <button id="sampleBtn" type="button">Load sample</button>
+    <button id="clearBtn" type="button">Clear</button>
+    <span class="kbd">Ctrl or Cmd + Enter</span>
+  </div>
+</section>
+
+<div id="empty" class="empty">
+  <h3>Nothing to diagnose yet</h3>
+  <p>Load the sample for a deliberately awful model response, or paste your own. Every repair this tool makes is reported as a named finding with a location, an explanation, and the fix that stops it recurring.</p>
+  <ul>
+    <li>Wrapping code fences, preamble prose, and trailing sign-off sentences</li>
+    <li>Trailing commas, missing commas, missing colons, stray commas</li>
+    <li>Single quotes, curly quotes as delimiters, unquoted keys and bare words</li>
+    <li>Python True / False / None, JavaScript NaN / Infinity / undefined</li>
+    <li>Comments, duplicate keys, unescaped newlines or tabs inside strings</li>
+    <li>Plus signs and leading zeros in numbers, invisible whitespace</li>
+    <li>Truncation: output cut off mid-string, mid-array, or mid-object</li>
+  </ul>
+</div>
+
+<section id="results" hidden>
+  <div id="verdict" aria-live="polite"></div>
+
+  <div class="grid2" id="baPanels">
+    <div class="panel">
+      <div class="panel-head"><h2>Before</h2><span class="hint" id="beforeMeta"></span></div>
+      <pre id="before"></pre>
+    </div>
+    <div class="panel">
+      <div class="panel-head"><h2>After</h2><span class="hint" id="afterMeta"></span></div>
+      <pre id="after"></pre>
+    </div>
+  </div>
+
+  <div class="panel" id="outPanel">
+    <div class="panel-head">
+      <h2>Repaired JSON</h2>
+      <div class="row">
+        <button id="copyPretty" class="tiny" type="button">Copy pretty</button>
+        <button id="copyMin" class="tiny" type="button">Copy minified</button>
+      </div>
+    </div>
+    <pre id="out"></pre>
+  </div>
+
+  <div class="panel" id="failPanel" hidden>
+    <div class="panel-head"><h2>Where it gave up</h2></div>
+    <pre id="failSnippet"></pre>
+    <p class="hint" id="failNote" style="margin-top:0.6rem"></p>
+  </div>
+
+  <div class="panel-head" style="margin-top:1.4rem">
+    <h2 id="findingsTitle">Findings</h2>
+    <button id="copyReport" class="tiny" type="button">Copy report</button>
+  </div>
+  <div id="findings"></div>
+</section>
+
+<section class="notes">
+  <h2>What this tool is guessing about</h2>
+  <p><strong>Repair is heuristic.</strong> Every fix below is an inference about what the model meant, not a derivation. Single quotes almost certainly meant a string, but an unquoted bare word might have meant an enum, and a number with leading zeros might have meant an identifier. When intent is ambiguous this tool picks the reading that loses the least data and says so in the finding, so you can disagree with it.</p>
+  <p><strong>A truncation repair cannot invent the missing content.</strong> When the output stops mid-value, all this tool can do is close the containers that were still open so the result parses. The data after the cut is gone. Parseable JSON with silently missing fields is more dangerous than a clean failure, so a truncation finding is flagged as fatal even though the output parses.</p>
+  <p><strong>Structured output modes are strictly better than repairing after the fact.</strong> If you can constrain the response with a tool or function schema, or a JSON-schema output format, the serializer writes the JSON and none of these failure modes can occur. Post-hoc repair is for output you do not control, or a pipeline you have not fixed yet. It is a triage tool, not an architecture.</p>
+  <p><strong>Nothing here validates against your schema.</strong> A repaired document can parse perfectly and still have the wrong shape, wrong field names, or hallucinated values. Verification below means "JSON.parse accepted it", nothing more.</p>
+</section>
+
+<section class="notes">
+  <h2>Related tool</h2>
+  <p>For everyday JSON work - formatting, tree browsing, JSONPath queries, diffing, converting - use <a href="https://github.com/0xelitesystem/json-workbench">json-workbench</a>, which includes a tolerant-parse mode for ordinary malformed JSON; this tool is narrower on purpose, covering only LLM-specific failure modes and the prompt-level fix for each one.</p>
+</section>
+
+<footer>
+  <span><a href="https://elitesystem.ai">An elitesystem.ai tool</a></span>
+  <span><a href="https://github.com/0xelitesystem/llm-json-repair">Source on GitHub</a></span>
+  <span>MIT licensed. Runs entirely in your browser.</span>
+</footer>
+
+</div>
+
+<script>
+/* =========================================================================
+   PURE CORE - no DOM access. Every function here takes input and returns a
+   value or a result object, so it can be run in Node or a test harness.
+   ========================================================================= */
+
+var SMART_DOUBLE_QUOTES = "\u201c\u201d\u201e\u201f\u00ab\u00bb";
+var SMART_SINGLE_QUOTES = "\u2018\u2019\u201a\u201b\u2039\u203a";
+
+/* Invisible or non-ASCII whitespace, written as escapes so this file stays
+   pure ASCII: nbsp, ogham space, en/em spaces, zero-width space, zero-width
+   non-joiner/joiner, line/paragraph separators, narrow nbsp, BOM. */
+var INVISIBLE_CHARS = "\u00a0\u1680\u2000\u2001\u2002\u2003\u2004\u2005\u2006\u2007\u2008\u2009\u200a\u200b\u200c\u200d\u2028\u2029\u202f\u205f\u3000\ufeff";
+
+var MISSING = { missingValue: true };
+var FINDING_CAP_PER_CODE = 12;
+
+var FAILURE_MODES = {
+  "code-fence": {
+    label: "markdown-code-fence",
+    category: "wrapper",
+    prevent: "The model formatted for a chat window, not for a parser. Best fix: stop asking for JSON in prose at all. Define the shape as a tool input_schema with strict: true, or set output_config.format to a json_schema, and read the typed result instead of the message text - a fence is then structurally impossible. If you must parse text, say: Return only the JSON object. No code fences, no explanation."
+  },
+  "prose-preamble": {
+    label: "prose-before-json",
+    category: "wrapper",
+    prevent: "A conversational opener means the model was answering a person, not filling a field. Move the payload out of the message body with a tool call (input_schema plus strict: true) or a json_schema output format. Prefilling the assistant turn with an opening brace is the classic trick, but it is rejected with HTTP 400 on current Claude models (Opus 4.6 and newer), so treat prefill as legacy-only rather than the answer."
+  },
+  "prose-postamble": {
+    label: "trailing-sentence-after-json",
+    category: "wrapper",
+    prevent: "The model closed the object and kept talking (Let me know if you need more fields). Schema-constrained output ends the response at the object. On a plain text response, a stop sequence halts generation at the closing brace as a band-aid - but also give the model a legal place to comment, such as a notes string field in the schema, so it stops appending one."
+  },
+  "extra-content": {
+    label: "multiple-json-documents",
+    category: "wrapper",
+    prevent: "Two payloads in one response usually means the prompt asked for several things at once, or the model restarted itself mid-answer. Ask for one object with a top-level array field instead of N separate documents, and enforce it with a schema. This tool kept the first document and ignored the rest, which may not be the one you wanted."
+  },
+  "trailing-comma": {
+    label: "trailing-comma",
+    category: "syntax",
+    prevent: "A JavaScript and Python habit: both tolerate a trailing comma, JSON does not. Never show one in a prompt example. The durable fix is a schema, so the serializer writes the punctuation instead of the model predicting it. If you must hand-parse, tolerate trailing commas explicitly in your parser rather than assuming the model will stop producing them."
+  },
+  "stray-comma": {
+    label: "stray-or-doubled-comma",
+    category: "syntax",
+    prevent: "An empty slot between two commas usually means the model dropped a field or an element while writing, so check for missing data rather than just fixing punctuation. Smaller objects and a strict schema (additionalProperties: false plus an explicit required list) turn a silent omission into a loud validation error."
+  },
+  "missing-comma": {
+    label: "missing-comma-between-members",
+    category: "syntax",
+    prevent: "Missing separators cluster in long outputs where the model has lost track of structure. Shrink the unit of work: fewer fields per call, or paginate a long array across calls. Schema-constrained decoding removes this entirely, because separators come from the serializer and are never predicted."
+  },
+  "missing-colon": {
+    label: "missing-colon-after-key",
+    category: "syntax",
+    prevent: "Same root cause as a missing comma: structural drift late in a long generation. Reduce the object size or move the shape into a tool input_schema so punctuation is not the model's job. If you see this alongside truncation findings, treat the whole response as unreliable and re-request rather than repair."
+  },
+  "single-quoted-string": {
+    label: "single-quoted-string",
+    category: "syntax",
+    prevent: "Single quotes are Python repr and JavaScript object-literal style, and they leak in when a prompt example was written that way or the output was described as a dict. Fix every example in your prompt to double quotes, say JSON rather than Python dictionary, and if you build few-shot examples server-side use json.dumps rather than str()."
+  },
+  "smart-quotes": {
+    label: "curly-quote-delimiters",
+    category: "syntax",
+    prevent: "Typographic quotes (U+201C and relatives) come from prose-mode generation or from something between the model and your parser that auto-formats text: a rich-text editor, a document field, a spreadsheet cell. Log the raw API response and confirm the model actually produced them before changing the prompt. Structured output eliminates them; otherwise ask for a raw JSON payload, not formatted prose."
+  },
+  "unquoted-key": {
+    label: "unquoted-object-key",
+    category: "syntax",
+    prevent: "The model wrote a JavaScript object literal, not JSON. Say JSON, not a JS object literal, and remove any prompt example showing bare keys. A json_schema output format or a strict tool schema makes the distinction impossible to get wrong."
+  },
+  "unquoted-string": {
+    label: "unquoted-string-value",
+    category: "syntax",
+    prevent: "A bare word where a string belongs usually means the field should have been an enum. Declare it as an enum in the schema: the value gets constrained to the legal set and quoted for you, and an out-of-set answer becomes a validation failure instead of a parse failure."
+  },
+  "python-literal": {
+    label: "python-literal",
+    category: "literal",
+    prevent: "True, False and None mean the model is writing Python, almost always because your prompt, your examples, or the surrounding conversation were Python. Use true, false and null in every example and stop describing the output as a dict. A boolean or nullable field in a schema fixes it at the source."
+  },
+  "js-literal": {
+    label: "javascript-literal",
+    category: "literal",
+    prevent: "JSON has no NaN, Infinity or undefined, so this is a modeling problem rather than a formatting one: the model had a value with no legal representation. Decide what it means and give it a home in the schema - a nullable number for not-computed, a sentinel string for unbounded, or an explicit unavailable boolean. This tool substituted null, which may not be what you meant."
+  },
+  "literal-case": {
+    label: "wrong-case-literal",
+    category: "literal",
+    prevent: "JSON literals are lowercase: true, false, null. Uppercase variants come from SQL, Python or config-file habits bleeding into the output. Fix the casing in your prompt examples, or let a schema decide the type so the literal is serialized rather than written."
+  },
+  "comment": {
+    label: "comment-in-json",
+    category: "syntax",
+    prevent: "A comment means the model had something to say and no legal place to say it. Adding no comments to the prompt half-works; adding a notes or reasoning string field to the schema works properly, because the aside goes inside the payload instead of beside it. JSONC and JSON5 permit comments - plain JSON does not, and neither does JSON.parse."
+  },
+  "duplicate-key": {
+    label: "duplicate-key",
+    category: "semantic",
+    prevent: "Two values for one key means the model revised itself mid-object. This is a silent data-loss bug, not a formatting one: JSON.parse keeps the last value and drops the earlier one without complaint. Use a strict schema with additionalProperties: false and an explicit required list, keep objects small, and prefer schema-constrained output for anything with more than a handful of fields."
+  },
+  "unescaped-control": {
+    label: "unescaped-newline-or-tab-in-string",
+    category: "syntax",
+    prevent: "A literal line break or tab inside a string is illegal JSON; it has to be an escape such as backslash-n. This appears when the model writes multi-line content (code, markdown, an address) into a string field. Let a serializer escape it: a tool call or json_schema response gets this right every time. If you are stuck with text output, put the long-form field last so a break costs less, or return the long text outside the JSON entirely."
+  },
+  "invalid-escape": {
+    label: "invalid-escape-sequence",
+    category: "syntax",
+    prevent: "JSON allows only the escapes for quote, backslash, forward slash, b, f, n, r, t and uXXXX. Anything else, such as an escaped single quote or a hex escape, is Python or C escaping bleeding through. A schema-serialized response never produces one; in a text pipeline, check whether your own logging layer double-escaped the payload before it reached the parser."
+  },
+  "number-plus-sign": {
+    label: "leading-plus-in-number",
+    category: "number",
+    prevent: "JSON numbers cannot begin with a plus sign. A leading plus usually means the value was formatted for a human: a delta, a signed score, a change figure. Keep presentation out of the payload - return the raw number and format it in the UI. A numeric field in a schema enforces that split."
+  },
+  "number-leading-zeros": {
+    label: "leading-zeros-in-number",
+    category: "number",
+    prevent: "Leading zeros are illegal in a JSON number, and their presence is a strong signal the field is not a number at all: zip codes, invoice numbers, account IDs, part numbers. Type it as a string in your schema. This tool kept the value as a string so the zeros are not lost - if it genuinely is a number, it is the same digits with the zeros removed."
+  },
+  "number-format": {
+    label: "malformed-number",
+    category: "number",
+    prevent: "Forms like .5, 5., 1_000 and 0x1f are legal in other languages but not in JSON. Declare the field as a number in a schema and let the serializer write it. If the value needs units, thousands separators or a currency symbol, that is a display concern and belongs outside the payload."
+  },
+  "truncation": {
+    label: "truncated-output",
+    category: "fatal",
+    prevent: "This is not a formatting bug and no repair can recover the missing content - generation was cut off. Check stop_reason first: max_tokens means raise max_tokens and request again, and stream the response, because large max_tokens values on a non-streaming request risk an HTTP timeout instead. A context-window stop reason means compact or split the conversation. Then make the payload smaller - fewer fields per call, or paginate long arrays - so a complete object fits well inside the budget."
+  },
+  "invisible-character": {
+    label: "invisible-whitespace",
+    category: "syntax",
+    prevent: "A non-breaking space, zero-width space or byte order mark got into the payload, usually from a copy-paste path through a document, a spreadsheet or a web page rather than from the model. Log the raw response bytes and confirm the API output already contained it. Reading the response without stripping a BOM is the other common cause."
+  }
+};
+
+function isSpaceCode(code) {
+  return code === 9 || code === 10 || code === 13 || code === 32;
+}
+
+function isInvisibleChar(ch) {
+  return ch.length === 1 && INVISIBLE_CHARS.indexOf(ch) !== -1;
+}
+
+function isSmartDoubleQuote(ch) {
+  return ch.length === 1 && SMART_DOUBLE_QUOTES.indexOf(ch) !== -1;
+}
+
+function isSmartSingleQuote(ch) {
+  return ch.length === 1 && SMART_SINGLE_QUOTES.indexOf(ch) !== -1;
+}
+
+function isAnyQuote(ch) {
+  return ch === '"' || ch === "'" || isSmartDoubleQuote(ch) || isSmartSingleQuote(ch);
+}
+
+function lineColOf(text, offset) {
+  var limit = Math.max(0, Math.min(offset, text.length));
+  var line = 1;
+  var col = 1;
+  for (var k = 0; k < limit; k++) {
+    if (text.charCodeAt(k) === 10) { line++; col = 1; } else { col++; }
+  }
+  return { line: line, column: col };
+}
+
+function previewText(value, max) {
+  var limit = max || 52;
+  var text = String(value).replace(/[\r\n\t]+/g, " ").replace(/\s{2,}/g, " ").trim();
+  if (text.length > limit) { text = text.slice(0, limit) + "..."; }
+  return text;
+}
+
+function repeatChar(ch, count) {
+  var out = "";
+  for (var k = 0; k < count; k++) { out += ch; }
+  return out;
+}
+
+function padLeft(text, width) {
+  var out = String(text);
+  while (out.length < width) { out = " " + out; }
+  return out;
+}
+
+function contextSnippet(text, offset) {
+  var position = lineColOf(text, offset);
+  var lines = text.split(/\r?\n/);
+  var index = position.line - 1;
+  var from = Math.max(0, index - 2);
+  var to = Math.min(lines.length - 1, index + 1);
+  var out = [];
+  for (var k = from; k <= to; k++) {
+    out.push(padLeft(k + 1, 5) + " | " + lines[k]);
+    if (k === index) {
+      out.push("      | " + repeatChar(" ", Math.max(0, position.column - 1)) + "^");
+    }
+  }
+  return out.join("\n");
+}
+
+/* Extract the body of a markdown code fence, if there is one. Returns the
+   body plus the absolute offset where the body starts in the input. */
+function extractCodeFence(text) {
+  var open = /(^|\n)[ \t]*```([A-Za-z0-9_+#.-]*)[ \t]*(\r?\n|$)/.exec(text);
+  if (!open) {
+    return { found: false, body: text, bodyStart: 0, lang: "", closed: false, fenceOffset: 0, after: "", afterStart: text.length };
+  }
+  var leadLength = open[1] ? open[1].length : 0;
+  var fenceOffset = open.index + leadLength;
+  var bodyStart = open.index + open[0].length;
+  var rest = text.slice(bodyStart);
+  var close = /(^|\n)[ \t]*```[ \t]*(\r?\n|$)/.exec(rest);
+  var body = close ? rest.slice(0, close.index) : rest;
+  /* Anything after the closing fence is still part of what the model said, so
+     it is handed back rather than dropped silently. */
+  var afterStart = close ? bodyStart + close.index + close[0].length : text.length;
+  return {
+    found: true,
+    body: body,
+    bodyStart: bodyStart,
+    lang: open[2] || "",
+    closed: !!close,
+    fenceOffset: fenceOffset,
+    after: close ? text.slice(afterStart) : "",
+    afterStart: afterStart
+  };
+}
+
+function firstStructuralIndex(text) {
+  for (var k = 0; k < text.length; k++) {
+    var ch = text.charAt(k);
+    if (ch === "{" || ch === "[") { return k; }
+  }
+  return -1;
+}
+
+/* Used when no object or array bracket exists anywhere in the input: decide
+   whether the text could plausibly be a bare JSON scalar, or is just prose. */
+function looksLikeJsonScalarStart(text) {
+  var trimmed = text.replace(/^[\s]+/, "");
+  if (trimmed === "") { return false; }
+  var first = trimmed.charAt(0);
+  if (isAnyQuote(first)) { return true; }
+  if (/^[+-]?(\.[0-9]|[0-9])/.test(trimmed)) { return true; }
+  return /^(true|false|null|True|False|None|NaN|Infinity|-Infinity|undefined)\s*$/.test(trimmed.trim());
+}
+
+function firstNonSpaceIndex(text) {
+  for (var k = 0; k < text.length; k++) {
+    if (!isSpaceCode(text.charCodeAt(k)) && !isInvisibleChar(text.charAt(k))) { return k; }
+  }
+  return -1;
+}
+
+/* Normalize a numeric token that JSON would reject. Pure: token in, result out. */
+function normalizeNumberToken(token) {
+  var notes = [];
+  var sign = "";
+  var body = String(token);
+
+  if (body.charAt(0) === "+") { notes.push("number-plus-sign"); body = body.slice(1); }
+  else if (body.charAt(0) === "-") { sign = "-"; body = body.slice(1); }
+
+  if (/_/.test(body)) { notes.push("number-format"); body = body.replace(/_/g, ""); }
+
+  if (/^0[xX][0-9a-fA-F]+$/.test(body)) {
+    notes.push("number-format");
+    return { ok: true, kind: "number", value: Number(sign + String(parseInt(body, 16))), notes: notes };
+  }
+
+  if (/^0[0-9]+$/.test(body)) {
+    /* Pure integer with leading zeros. Keep the digits as a string so a zip
+       code or invoice number is not silently mangled into a smaller number. */
+    notes.push("number-leading-zeros");
+    return { ok: true, kind: "string", value: sign + body, numericValue: Number(sign + body), notes: notes };
+  }
+
+  if (/^0[0-9]+\./.test(body)) { notes.push("number-leading-zeros"); body = body.replace(/^0+/, ""); }
+  if (body.charAt(0) === ".") { notes.push("number-format"); body = "0" + body; }
+  if (body.charAt(body.length - 1) === ".") { notes.push("number-format"); body = body + "0"; }
+
+  if (!/^[0-9]+(\.[0-9]+)?([eE][+-]?[0-9]+)?$/.test(body)) {
+    return { ok: false, notes: notes };
+  }
+  var numeric = Number(sign + body);
+  if (!isFinite(numeric)) { return { ok: false, notes: notes }; }
+  return { ok: true, kind: "number", value: numeric, notes: notes };
+}
+
+function makeParseState(source, base, raw) {
+  return {
+    src: source,
+    i: 0,
+    base: base,
+    raw: raw,
+    findings: [],
+    /* null-prototype so a failure code never collides with an inherited name */
+    counts: Object.create(null),
+    suppressed: Object.create(null),
+    truncation: null,
+    autoClosed: 0
+  };
+}
+
+function lookupMode(code) {
+  /* FAILURE_MODES is an object literal, so a code such as "constructor" would
+     otherwise resolve to something inherited from Object.prototype. */
+  if (Object.prototype.hasOwnProperty.call(FAILURE_MODES, code)) { return FAILURE_MODES[code]; }
+  return { label: String(code), category: "syntax", prevent: "" };
+}
+
+function addFinding(state, code, relOffset, what) {
+  var mode = lookupMode(code);
+  state.counts[code] = (Object.prototype.hasOwnProperty.call(state.counts, code) ? state.counts[code] : 0) + 1;
+  if (state.counts[code] > FINDING_CAP_PER_CODE) {
+    state.suppressed[code] = (Object.prototype.hasOwnProperty.call(state.suppressed, code) ? state.suppressed[code] : 0) + 1;
+    return;
+  }
+  var absolute = state.base + relOffset;
+  var position = lineColOf(state.raw, absolute);
+  state.findings.push({
+    code: code,
+    label: mode.label,
+    category: mode.category,
+    prevent: mode.prevent,
+    what: what,
+    offset: absolute,
+    line: position.line,
+    column: position.column
+  });
+}
+
+function repairFailure(state, relOffset, message) {
+  return {
+    repairFailure: true,
+    message: message,
+    offset: state.base + relOffset
+  };
+}
+
+function markTruncation(state, relOffset, context) {
+  if (!state.truncation) {
+    state.truncation = { rel: relOffset, context: context };
+  }
+}
+
+function skipTrivia(state) {
+  var s = state.src;
+  for (;;) {
+    var moved = false;
+    while (state.i < s.length) {
+      var ch = s.charAt(state.i);
+      if (isSpaceCode(s.charCodeAt(state.i))) { state.i++; moved = true; continue; }
+      if (isInvisibleChar(ch)) {
+        addFinding(state, "invisible-character", state.i,
+          "non-ASCII or zero-width whitespace (U+" + padZeroHex(ch.charCodeAt(0)) + ") between tokens");
+        state.i++;
+        moved = true;
+        continue;
+      }
+      break;
+    }
+    if (s.charAt(state.i) === "/" && s.charAt(state.i + 1) === "/") {
+      var lineStart = state.i;
+      while (state.i < s.length && s.charCodeAt(state.i) !== 10) { state.i++; }
+      addFinding(state, "comment", lineStart, "line comment removed: " + previewText(s.slice(lineStart, state.i)));
+      moved = true;
+      continue;
+    }
+    if (s.charAt(state.i) === "#") {
+      var hashStart = state.i;
+      while (state.i < s.length && s.charCodeAt(state.i) !== 10) { state.i++; }
+      addFinding(state, "comment", hashStart, "hash comment removed: " + previewText(s.slice(hashStart, state.i)));
+      moved = true;
+      continue;
+    }
+    if (s.charAt(state.i) === "/" && s.charAt(state.i + 1) === "*") {
+      var blockStart = state.i;
+      var end = s.indexOf("*/", state.i + 2);
+      state.i = end === -1 ? s.length : end + 2;
+      addFinding(state, "comment", blockStart, "block comment removed: " + previewText(s.slice(blockStart, state.i)));
+      moved = true;
+      continue;
+    }
+    if (!moved) { break; }
+  }
+}
+
+function padZeroHex(code) {
+  var hex = code.toString(16).toUpperCase();
+  while (hex.length < 4) { hex = "0" + hex; }
+  return hex;
+}
+
+function parseStringToken(state) {
+  var s = state.src;
+  var openOffset = state.i;
+  var opener = s.charAt(state.i);
+  state.i++;
+
+  var closers;
+  if (opener === '"') { closers = '"'; }
+  else if (opener === "'") {
+    closers = "'";
+    addFinding(state, "single-quoted-string", openOffset, "string delimited with single quotes instead of double quotes");
+  } else if (isSmartDoubleQuote(opener)) {
+    closers = SMART_DOUBLE_QUOTES + '"';
+    addFinding(state, "smart-quotes", openOffset, "string delimited with a curly double quote (U+" + padZeroHex(opener.charCodeAt(0)) + ")");
+  } else {
+    closers = SMART_SINGLE_QUOTES + "'";
+    addFinding(state, "smart-quotes", openOffset, "string delimited with a curly single quote (U+" + padZeroHex(opener.charCodeAt(0)) + ")");
+  }
+
+  var out = "";
+  var flaggedControl = false;
+  while (state.i < s.length) {
+    var ch = s.charAt(state.i);
+    if (ch === "\\") {
+      var esc = s.charAt(state.i + 1);
+      if (esc === "") { break; }
+      if (esc === '"' || esc === "\\" || esc === "/") { out += esc; state.i += 2; continue; }
+      if (esc === "b") { out += "\b"; state.i += 2; continue; }
+      if (esc === "f") { out += "\f"; state.i += 2; continue; }
+      if (esc === "n") { out += "\n"; state.i += 2; continue; }
+      if (esc === "r") { out += "\r"; state.i += 2; continue; }
+      if (esc === "t") { out += "\t"; state.i += 2; continue; }
+      if (esc === "u" && /^[0-9a-fA-F]{4}$/.test(s.substr(state.i + 2, 4))) {
+        out += String.fromCharCode(parseInt(s.substr(state.i + 2, 4), 16));
+        state.i += 6;
+        continue;
+      }
+      addFinding(state, "invalid-escape", state.i, "escape sequence backslash-" + esc + " is not valid JSON; kept the literal character");
+      out += esc;
+      state.i += 2;
+      continue;
+    }
+    if (closers.indexOf(ch) !== -1) { state.i++; return out; }
+    var code = s.charCodeAt(state.i);
+    if (code < 32) {
+      if (!flaggedControl) {
+        flaggedControl = true;
+        var name = code === 10 ? "newline" : (code === 9 ? "tab" : (code === 13 ? "carriage return" : "control character U+" + padZeroHex(code)));
+        addFinding(state, "unescaped-control", state.i, "raw " + name + " inside a string; escaped it and kept the text");
+      }
+      out += ch;
+      state.i++;
+      continue;
+    }
+    out += ch;
+    state.i++;
+  }
+
+  markTruncation(state, state.i, "inside a string that was never closed");
+  return out;
+}
+
+function readBareToken(state) {
+  var s = state.src;
+  var start = state.i;
+  while (state.i < s.length) {
+    var ch = s.charAt(state.i);
+    if (isSpaceCode(s.charCodeAt(state.i)) || isInvisibleChar(ch)) { break; }
+    if (ch === ":" || ch === "," || ch === "{" || ch === "}" || ch === "[" || ch === "]") { break; }
+    if (isAnyQuote(ch) || ch === "/" || ch === "#") { break; }
+    state.i++;
+  }
+  return s.slice(start, state.i);
+}
+
+function parseWordToken(state) {
+  var start = state.i;
+  var token = readBareToken(state);
+  if (token === "") {
+    throw repairFailure(state, start, "unexpected character " + JSON.stringify(state.src.charAt(start)) + " where a value was expected");
+  }
+
+  if (token === "true") { return true; }
+  if (token === "false") { return false; }
+  if (token === "null") { return null; }
+
+  if (token === "True") { addFinding(state, "python-literal", start, "Python True replaced with true"); return true; }
+  if (token === "False") { addFinding(state, "python-literal", start, "Python False replaced with false"); return false; }
+  if (token === "None") { addFinding(state, "python-literal", start, "Python None replaced with null"); return null; }
+
+  var lower = token.toLowerCase();
+  if (lower === "true" || lower === "false" || lower === "null") {
+    addFinding(state, "literal-case", start, token + " is not a JSON literal; used " + lower);
+    return lower === "true" ? true : (lower === "false" ? false : null);
+  }
+
+  if (token === "NaN" || lower === "nan") {
+    addFinding(state, "js-literal", start, "NaN has no JSON representation; substituted null");
+    return null;
+  }
+  if (/^[+-]?Infinity$/.test(token) || lower === "inf" || lower === "-inf") {
+    addFinding(state, "js-literal", start, token + " has no JSON representation; substituted null");
+    return null;
+  }
+  if (token === "undefined") {
+    addFinding(state, "js-literal", start, "undefined has no JSON representation; substituted null");
+    return null;
+  }
+
+  if (/^[+-]?[0-9._]|^[+-]?\.[0-9]/.test(token) || /^[+-]?[0-9]/.test(token)) {
+    var normalized = normalizeNumberToken(token);
+    if (normalized.ok) {
+      for (var n = 0; n < normalized.notes.length; n++) {
+        var code = normalized.notes[n];
+        var what;
+        if (code === "number-plus-sign") {
+          what = token + " has a leading plus sign, which JSON forbids; used " + JSON.stringify(normalized.value);
+        } else if (code === "number-leading-zeros") {
+          what = token + " has leading zeros, which JSON forbids; kept as the string " + JSON.stringify(normalized.value) +
+                 " so the zeros survive (as a number it would be " + normalized.numericValue + ")";
+        } else {
+          what = token + " is not a legal JSON number; read as " + JSON.stringify(normalized.value);
+        }
+        addFinding(state, code, start, what);
+      }
+      return normalized.value;
+    }
+  }
+
+  addFinding(state, "unquoted-string", start, "bare word " + JSON.stringify(token) + " read as a string");
+  return token;
+}
+
+function parseObjectValue(state, depth) {
+  var s = state.src;
+  state.i++; /* consume { */
+  var out = Object.create(null);
+  var seen = Object.create(null);
+
+  for (;;) {
+    skipTrivia(state);
+    if (state.i >= s.length) {
+      markTruncation(state, state.i, "inside an object");
+      state.autoClosed++;
+      return out;
+    }
+    var ch = s.charAt(state.i);
+    if (ch === "}") { state.i++; return out; }
+    if (ch === ",") {
+      addFinding(state, "stray-comma", state.i, "comma with no member before it");
+      state.i++;
+      continue;
+    }
+
+    var keyOffset = state.i;
+    var key;
+    if (isAnyQuote(ch)) {
+      key = parseStringToken(state);
+    } else if (ch === "{" || ch === "[") {
+      throw repairFailure(state, keyOffset, "found a nested " + (ch === "{" ? "object" : "array") + " where an object key was expected");
+    } else {
+      var bare = readBareToken(state);
+      if (bare === "") {
+        throw repairFailure(state, keyOffset, "unexpected character " + JSON.stringify(ch) + " where an object key was expected");
+      }
+      key = bare;
+      addFinding(state, "unquoted-key", keyOffset, "unquoted key " + JSON.stringify(bare) + " wrapped in double quotes");
+    }
+
+    skipTrivia(state);
+    if (state.i >= s.length) {
+      markTruncation(state, state.i, "after the key " + JSON.stringify(previewText(key, 30)) + " with no value");
+      state.autoClosed++;
+      return out;
+    }
+    if (s.charAt(state.i) === ":") {
+      state.i++;
+    } else {
+      addFinding(state, "missing-colon", state.i, "no colon after the key " + JSON.stringify(previewText(key, 30)));
+    }
+
+    var value = parseValueAt(state, depth + 1);
+    if (value === MISSING) {
+      markTruncation(state, state.i, "after the key " + JSON.stringify(previewText(key, 30)) + " with no value");
+      state.autoClosed++;
+      return out;
+    }
+
+    if (Object.prototype.hasOwnProperty.call(seen, key)) {
+      addFinding(state, "duplicate-key", keyOffset,
+        "key " + JSON.stringify(previewText(key, 30)) + " appears more than once; kept the last value, matching JSON.parse");
+    }
+    seen[key] = true;
+    out[key] = value;
+
+    skipTrivia(state);
+    if (state.i >= s.length) {
+      markTruncation(state, state.i, "inside an object");
+      state.autoClosed++;
+      return out;
+    }
+    var next = s.charAt(state.i);
+    if (next === ",") {
+      /* remember where the comma actually is: whitespace or a comment may sit
+         between it and the closing brace, so state.i - 1 would misreport it */
+      var commaOffset = state.i;
+      state.i++;
+      skipTrivia(state);
+      if (state.i >= s.length) {
+        markTruncation(state, state.i, "inside an object, right after a comma");
+        state.autoClosed++;
+        return out;
+      }
+      if (s.charAt(state.i) === "}") {
+        addFinding(state, "trailing-comma", commaOffset, "trailing comma before the closing brace of an object");
+        state.i++;
+        return out;
+      }
+      continue;
+    }
+    if (next === "}") { state.i++; return out; }
+    if (next === "]") {
+      throw repairFailure(state, state.i, "an object was closed with ] instead of }");
+    }
+    addFinding(state, "missing-comma", state.i, "no comma between object members");
+  }
+}
+
+function parseArrayValue(state, depth) {
+  var s = state.src;
+  state.i++; /* consume [ */
+  var out = [];
+
+  for (;;) {
+    skipTrivia(state);
+    if (state.i >= s.length) {
+      markTruncation(state, state.i, "inside an array at element " + out.length);
+      state.autoClosed++;
+      return out;
+    }
+    var ch = s.charAt(state.i);
+    if (ch === "]") { state.i++; return out; }
+    if (ch === ",") {
+      addFinding(state, "stray-comma", state.i, "comma with no element before it in an array");
+      state.i++;
+      continue;
+    }
+
+    var value = parseValueAt(state, depth + 1);
+    if (value === MISSING) {
+      markTruncation(state, state.i, "inside an array at element " + out.length);
+      state.autoClosed++;
+      return out;
+    }
+    out.push(value);
+
+    skipTrivia(state);
+    if (state.i >= s.length) {
+      markTruncation(state, state.i, "inside an array at element " + out.length);
+      state.autoClosed++;
+      return out;
+    }
+    var next = s.charAt(state.i);
+    if (next === ",") {
+      /* same as the object case: report the comma, not whatever precedes ] */
+      var commaOffset = state.i;
+      state.i++;
+      skipTrivia(state);
+      if (state.i >= s.length) {
+        markTruncation(state, state.i, "inside an array, right after a comma");
+        state.autoClosed++;
+        return out;
+      }
+      if (s.charAt(state.i) === "]") {
+        addFinding(state, "trailing-comma", commaOffset, "trailing comma before the closing bracket of an array");
+        state.i++;
+        return out;
+      }
+      continue;
+    }
+    if (next === "]") { state.i++; return out; }
+    if (next === "}") {
+      throw repairFailure(state, state.i, "an array was closed with } instead of ]");
+    }
+    addFinding(state, "missing-comma", state.i, "no comma between array elements");
+  }
+}
+
+function parseValueAt(state, depth) {
+  if (depth > 200) {
+    throw repairFailure(state, state.i, "structure nested deeper than 200 levels");
+  }
+  skipTrivia(state);
+  if (state.i >= state.src.length) { return MISSING; }
+  var ch = state.src.charAt(state.i);
+  if (ch === "{") { return parseObjectValue(state, depth); }
+  if (ch === "[") { return parseArrayValue(state, depth); }
+  if (isAnyQuote(ch)) { return parseStringToken(state); }
+  if (ch === "}" || ch === "]" || ch === ":" || ch === ",") {
+    throw repairFailure(state, state.i, "unexpected " + JSON.stringify(ch) + " where a value was expected");
+  }
+  return parseWordToken(state, depth);
+}
+
+function describeTopLevel(value) {
+  if (value === null) { return { type: "null", count: null, countLabel: "" }; }
+  if (Array.isArray(value)) { return { type: "array", count: value.length, countLabel: value.length === 1 ? "element" : "elements" }; }
+  if (typeof value === "object") {
+    var keys = Object.keys(value);
+    return { type: "object", count: keys.length, countLabel: keys.length === 1 ? "key" : "keys" };
+  }
+  return { type: typeof value, count: null, countLabel: "" };
+}
+
+/* JSON.parse accepts duplicate keys and silently keeps the last value, so a
+   document can be strictly valid and still have lost data on the way in. When
+   the strict parse succeeds, the tolerant parser is run a second time purely
+   to find those, and nothing it says about anything else is used. */
+function auditValidJson(raw) {
+  var state = makeParseState(raw, 0, raw);
+  var findings = [];
+  var suppressed = Object.create(null);
+  try {
+    parseValueAt(state, 0);
+  } catch (ignored) {
+    return { findings: findings, suppressed: suppressed };
+  }
+  for (var k = 0; k < state.findings.length; k++) {
+    if (state.findings[k].code === "duplicate-key") { findings.push(state.findings[k]); }
+  }
+  if (Object.prototype.hasOwnProperty.call(state.suppressed, "duplicate-key")) {
+    suppressed["duplicate-key"] = state.suppressed["duplicate-key"];
+  }
+  return { findings: findings, suppressed: suppressed };
+}
+
+/* The main entry point. Input: raw model output. Output: a result object. */
+function repairLlmJson(rawInput) {
+  var raw = String(rawInput == null ? "" : rawInput);
+  var result = {
+    status: "failed",
+    ok: false,
+    input: raw,
+    findings: [],
+    suppressed: Object.create(null),
+    value: undefined,
+    pretty: "",
+    minified: "",
+    verify: { parsed: false, topLevelType: "", count: null, countLabel: "" },
+    nativeParse: false,
+    lossy: false,
+    error: null,
+    unrecovered: ""
+  };
+
+  if (raw.trim() === "") {
+    result.status = "empty";
+    result.error = { message: "Nothing to repair: the input is empty.", offset: 0, line: 1, column: 1 };
+    result.unrecovered = "No input was provided.";
+    return result;
+  }
+
+  /* Fast path: already valid JSON. Report it honestly, repair nothing. The
+     only thing still worth saying about a valid document is whether a
+     duplicate key silently cost you a value on the way through JSON.parse. */
+  var clean;
+  var strictOk = false;
+  try {
+    clean = JSON.parse(raw);
+    strictOk = true;
+  } catch (ignored) { strictOk = false; }
+
+  if (strictOk) {
+    result.status = "clean";
+    result.ok = true;
+    result.nativeParse = true;
+    result.value = clean;
+    result.pretty = JSON.stringify(clean, null, 2);
+    result.minified = JSON.stringify(clean);
+    var cleanShape = describeTopLevel(clean);
+    result.verify = { parsed: true, topLevelType: cleanShape.type, count: cleanShape.count, countLabel: cleanShape.countLabel };
+    var audit = auditValidJson(raw);
+    result.findings = sortFindings(audit.findings);
+    result.suppressed = audit.suppressed;
+    result.lossy = result.findings.length > 0;
+    return result;
+  }
+
+  var working = raw;
+  var base = 0;
+  var preFindings = [];
+
+  var fence = extractCodeFence(working);
+  if (fence.found) {
+    preFindings.push({
+      code: "code-fence",
+      absOffset: fence.fenceOffset,
+      what: "wrapped in a markdown code fence" +
+            (fence.lang ? " tagged " + fence.lang : " with no language tag") +
+            (fence.closed ? "" : " (the closing fence is missing, which often means the response was cut off)")
+    });
+    var beforeFence = working.slice(0, fence.fenceOffset);
+    if (beforeFence.trim() !== "") {
+      preFindings.push({
+        code: "prose-preamble",
+        absOffset: 0,
+        what: "prose before the fence: " + JSON.stringify(previewText(beforeFence))
+      });
+    }
+    working = fence.body;
+    base = fence.bodyStart;
+  }
+
+  var hasStructure = firstStructuralIndex(working) !== -1;
+  var startIndex = firstStructuralIndex(working);
+  if (startIndex === -1) { startIndex = firstNonSpaceIndex(working); }
+  if (startIndex === -1) { startIndex = 0; }
+  if (startIndex > 0) {
+    var skipped = working.slice(0, startIndex);
+    if (skipped.trim() !== "") {
+      preFindings.push({
+        code: "prose-preamble",
+        absOffset: base,
+        what: "prose before the JSON: " + JSON.stringify(previewText(skipped))
+      });
+    } else if (/[^\x20-\x7e\t\r\n]/.test(skipped)) {
+      preFindings.push({
+        code: "invisible-character",
+        absOffset: base,
+        what: "invisible characters before the opening bracket, such as a byte order mark"
+      });
+    }
+    working = working.slice(startIndex);
+    base += startIndex;
+  }
+
+  var state = makeParseState(working, base, raw);
+  /* Pre-parse findings already carry offsets in the original input, so they
+     are converted back to state-relative offsets before being recorded. */
+  for (var p = 0; p < preFindings.length; p++) {
+    addFinding(state, preFindings[p].code, preFindings[p].absOffset - base, preFindings[p].what);
+  }
+
+  var parsed;
+  try {
+    if (!hasStructure && !looksLikeJsonScalarStart(working)) {
+      throw repairFailure(state, 0,
+        "no JSON object or array found: the response reads as prose, not as a payload");
+    }
+
+    parsed = parseValueAt(state, 0);
+    if (parsed === MISSING) {
+      throw repairFailure(state, state.i, "no JSON value found in the input");
+    }
+
+    skipTrivia(state);
+    if (state.i < state.src.length) {
+      var tail = state.src.slice(state.i);
+      var tailTrimmed = tail.trim();
+      if (tailTrimmed !== "" && !hasStructure) {
+        /* A bare scalar followed by more text is prose, not a JSON document.
+           Guessing here would produce confidently wrong output. */
+        throw repairFailure(state, state.i,
+          "no JSON object or array found, and the value read at the start is followed by more text");
+      }
+      if (tailTrimmed !== "") {
+        if (tailTrimmed.indexOf("```") === 0) {
+          addFinding(state, "code-fence", state.i, "closing markdown fence after the JSON");
+        } else if (tailTrimmed.charAt(0) === "{" || tailTrimmed.charAt(0) === "[") {
+          addFinding(state, "extra-content", state.i,
+            "a second JSON document follows the first and was discarded: " + JSON.stringify(previewText(tailTrimmed)));
+        } else {
+          addFinding(state, "prose-postamble", state.i,
+            "text after the closing of the JSON: " + JSON.stringify(previewText(tailTrimmed)));
+        }
+      }
+    }
+  } catch (err) {
+    if (err && err.repairFailure) {
+      var position = lineColOf(raw, err.offset);
+      result.status = "failed";
+      result.ok = false;
+      result.findings = sortFindings(state.findings);
+      result.suppressed = state.suppressed;
+      result.error = { message: err.message, offset: err.offset, line: position.line, column: position.column };
+      result.unrecovered = "Parsing stopped at line " + position.line + ", column " + position.column +
+        ". Everything from that point on could not be interpreted, so no repaired document is produced. " +
+        "The findings below are the problems identified before the parser gave up.";
+      return result;
+    }
+    throw err;
+  }
+
+  /* Text after the closing fence never reaches the parser, because only the
+     fence body is parsed. Report it rather than dropping it in silence. */
+  if (fence.found && fence.closed && fence.after && fence.after.trim() !== "") {
+    var afterTrimmed = fence.after.trim();
+    var afterRel = fence.afterStart - base;
+    var afterIsJson = afterTrimmed.charAt(0) === "{" || afterTrimmed.charAt(0) === "[";
+    if (!afterIsJson && afterTrimmed.indexOf("```") === 0) {
+      /* the model emitted a second fenced block, not a sign-off sentence */
+      var secondFence = extractCodeFence(afterTrimmed);
+      afterIsJson = secondFence.found && firstStructuralIndex(secondFence.body) !== -1;
+    }
+    if (afterIsJson) {
+      addFinding(state, "extra-content", afterRel,
+        "a second JSON document follows the closing fence and was discarded: " + JSON.stringify(previewText(afterTrimmed)));
+    } else {
+      addFinding(state, "prose-postamble", afterRel,
+        "text after the closing fence: " + JSON.stringify(previewText(afterTrimmed)));
+    }
+  }
+
+  if (state.truncation) {
+    var closedNote = state.autoClosed === 0
+      ? "nothing had to be closed"
+      : state.autoClosed + " open container" + (state.autoClosed === 1 ? "" : "s") + " had to be closed to make the result parse";
+    addFinding(state, "truncation", state.truncation.rel,
+      "output ends " + state.truncation.context + "; " + closedNote + ". Anything after the cut is unrecoverable.");
+  }
+
+  var minified;
+  var pretty;
+  try {
+    minified = JSON.stringify(parsed);
+    pretty = JSON.stringify(parsed, null, 2);
+  } catch (stringifyError) {
+    result.status = "failed";
+    result.findings = sortFindings(state.findings);
+    result.suppressed = state.suppressed;
+    result.error = { message: "The repaired structure could not be serialized: " + String(stringifyError && stringifyError.message), offset: 0, line: 1, column: 1 };
+    result.unrecovered = "The input parsed into a structure that cannot be represented as JSON, so no output is offered.";
+    return result;
+  }
+
+  if (typeof minified !== "string") {
+    result.status = "failed";
+    result.findings = sortFindings(state.findings);
+    result.suppressed = state.suppressed;
+    result.error = { message: "The top-level value has no JSON representation.", offset: 0, line: 1, column: 1 };
+    result.unrecovered = "Nothing serializable was recovered from the input.";
+    return result;
+  }
+
+  /* Never present unparseable output as repaired: verify with JSON.parse. */
+  var verified;
+  try {
+    verified = JSON.parse(minified);
+  } catch (verifyError) {
+    result.status = "failed";
+    result.findings = sortFindings(state.findings);
+    result.suppressed = state.suppressed;
+    result.error = { message: "Verification failed: the repaired text did not survive JSON.parse (" + String(verifyError && verifyError.message) + ")", offset: 0, line: 1, column: 1 };
+    result.unrecovered = "The repair produced output that does not parse, so it is withheld rather than shown as fixed.";
+    return result;
+  }
+
+  var shape = describeTopLevel(verified);
+  result.status = state.findings.length > 0 ? "repaired" : "clean";
+  result.ok = true;
+  result.value = verified;
+  result.pretty = pretty;
+  result.minified = minified;
+  result.findings = sortFindings(state.findings);
+  result.suppressed = state.suppressed;
+  result.verify = { parsed: true, topLevelType: shape.type, count: shape.count, countLabel: shape.countLabel };
+  return result;
+}
+
+function sortFindings(findings) {
+  var copy = findings.slice();
+  copy.sort(function (a, b) { return a.offset - b.offset; });
+  return copy;
+}
+
+/* Group findings by failure mode so each prevention note is stated once. */
+function groupFindings(findings) {
+  var order = [];
+  /* null-prototype: a code named "constructor" or "toString" must not resolve
+     to an inherited value and skip the group-creation branch */
+  var byCode = Object.create(null);
+  for (var k = 0; k < findings.length; k++) {
+    var finding = findings[k];
+    if (!Object.prototype.hasOwnProperty.call(byCode, finding.code)) {
+      byCode[finding.code] = {
+        code: finding.code,
+        label: finding.label,
+        category: finding.category,
+        prevent: finding.prevent,
+        occurrences: []
+      };
+      order.push(byCode[finding.code]);
+    }
+    byCode[finding.code].occurrences.push(finding);
+  }
+  return order;
+}
+
+function buildReportMarkdown(result) {
+  var lines = [];
+  lines.push("# LLM JSON repair report");
+  lines.push("");
+  if (result.status === "clean" && result.nativeParse && result.lossy) {
+    lines.push("Status: valid JSON, nothing repaired, but a duplicate key silently dropped a value.");
+  } else if (result.status === "clean" && result.nativeParse) {
+    lines.push("Status: valid JSON, no repairs needed.");
+  } else if (result.status === "clean") {
+    lines.push("Status: parsed by the tolerant parser only, with no named failure mode matched.");
+  } else if (result.status === "repaired") {
+    lines.push("Status: repaired (heuristic).");
+  } else {
+    lines.push("Status: could not repair.");
+  }
+  if (result.verify.parsed) {
+    lines.push("Verified: JSON.parse accepted the output. Top level is " + result.verify.topLevelType +
+      (result.verify.count === null ? "" : " with " + result.verify.count + " " + result.verify.countLabel) + ".");
+  } else if (result.error) {
+    lines.push("Error: " + result.error.message + " (line " + result.error.line + ", column " + result.error.column + ")");
+  }
+  var groups = groupFindings(result.findings);
+  lines.push("");
+  lines.push("Findings: " + result.findings.length + " across " + groups.length + " failure mode" + (groups.length === 1 ? "" : "s") + ".");
+  for (var g = 0; g < groups.length; g++) {
+    var group = groups[g];
+    lines.push("");
+    lines.push("## " + group.label + " (" + group.occurrences.length + ")");
+    for (var o = 0; o < group.occurrences.length; o++) {
+      var occ = group.occurrences[o];
+      lines.push("- line " + occ.line + ", col " + occ.column + " (offset " + occ.offset + "): " + occ.what);
+    }
+    lines.push("");
+    lines.push("Prevent this: " + group.prevent);
+  }
+  return lines.join("\n");
+}
+
+/* A deliberately awful model response: fence, preamble, comment, unquoted key,
+   single quotes, leading zeros, leading plus, curly quotes, Python literal,
+   NaN, raw newline in a string, trailing comma, missing comma, duplicate key,
+   and truncation mid-string. */
+function llmJsonSample() {
+  return [
+    "Sure thing! Here is the JSON you asked for:",
+    "",
+    "```json",
+    "{",
+    "  // pulled from the invoice PDF, best effort",
+    "  vendor: 'Northwind Supply Co.',",
+    "  \"invoice_no\": 000481,",
+    "  \"amount_due\": +1284.50,",
+    "  \"currency\": \u201cUSD\u201d,",
+    "  \"paid\": False,",
+    "  \"discount_rate\": NaN,",
+    "  \"notes\": \"Net 30.",
+    "Ship to dock B.\",",
+    "  \"line_items\": [",
+    "    { \"sku\": \"AX-9\", \"qty\": 2, },",
+    "    { \"sku\": \"BX-4\" \"qty\": 1 },",
+    "    { \"sku\": \"CX-7\", \"qty\": 3 }",
+    "  ],",
+    "  \"contact\": { \"email\": \"ops@example.com\", \"email\": \"billing@example.com\" },",
+    "  \"ship_to\": \"1450 Harbor"
+  ].join("\n");
+}
+
+if (typeof module !== "undefined" && module.exports) {
+  module.exports = {
+    repairLlmJson: repairLlmJson,
+    normalizeNumberToken: normalizeNumberToken,
+    extractCodeFence: extractCodeFence,
+    looksLikeJsonScalarStart: looksLikeJsonScalarStart,
+    groupFindings: groupFindings,
+    buildReportMarkdown: buildReportMarkdown,
+    describeTopLevel: describeTopLevel,
+    lineColOf: lineColOf,
+    contextSnippet: contextSnippet,
+    llmJsonSample: llmJsonSample,
+    FAILURE_MODES: FAILURE_MODES
+  };
+}
+
+/* =========================================================================
+   END PURE CORE. Everything below touches the DOM.
+   ========================================================================= */
+
+function initApp() {
+  var byId = function (id) { return document.getElementById(id); };
+
+  var srcEl = byId("src");
+  var repairBtn = byId("repairBtn");
+  var sampleBtn = byId("sampleBtn");
+  var clearBtn = byId("clearBtn");
+  var themeBtn = byId("themeBtn");
+  var emptyEl = byId("empty");
+  var resultsEl = byId("results");
+  var verdictEl = byId("verdict");
+  var beforeEl = byId("before");
+  var afterEl = byId("after");
+  var beforeMeta = byId("beforeMeta");
+  var afterMeta = byId("afterMeta");
+  var outEl = byId("out");
+  var outPanel = byId("outPanel");
+  var baPanels = byId("baPanels");
+  var failPanel = byId("failPanel");
+  var failSnippet = byId("failSnippet");
+  var failNote = byId("failNote");
+  var findingsEl = byId("findings");
+  var findingsTitle = byId("findingsTitle");
+  var copyPretty = byId("copyPretty");
+  var copyMin = byId("copyMin");
+  var copyReport = byId("copyReport");
+
+  var current = null;
+
+  /* theme */
+  function applyTheme(theme) {
+    document.documentElement.setAttribute("data-theme", theme);
+    var isLight = theme === "light";
+    themeBtn.textContent = isLight ? "Dark mode" : "Light mode";
+    themeBtn.setAttribute("aria-pressed", isLight ? "true" : "false");
+  }
+  var storedTheme = null;
+  try { storedTheme = window.localStorage.getItem("llm-json-repair-theme"); } catch (e) { storedTheme = null; }
+  applyTheme(storedTheme === "light" ? "light" : "dark");
+  themeBtn.addEventListener("click", function () {
+    var next = document.documentElement.getAttribute("data-theme") === "light" ? "dark" : "light";
+    applyTheme(next);
+    try { window.localStorage.setItem("llm-json-repair-theme", next); } catch (e) { /* storage blocked */ }
+  });
+
+  function el(tag, className, text) {
+    var node = document.createElement(tag);
+    if (className) { node.className = className; }
+    if (text !== undefined && text !== null) { node.textContent = text; }
+    return node;
+  }
+
+  function flashCopied(button, label) {
+    var original = label;
+    button.textContent = "Copied";
+    button.classList.add("copied");
+    window.setTimeout(function () {
+      button.textContent = original;
+      button.classList.remove("copied");
+    }, 1400);
+  }
+
+  function copyText(text, button, label) {
+    if (!text) { return; }
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(text).then(function () {
+        flashCopied(button, label);
+      }, function () {
+        legacyCopy(text, button, label);
+      });
+      return;
+    }
+    legacyCopy(text, button, label);
+  }
+
+  function legacyCopy(text, button, label) {
+    var holder = document.createElement("textarea");
+    holder.value = text;
+    holder.setAttribute("readonly", "readonly");
+    holder.style.position = "fixed";
+    holder.style.top = "-1000px";
+    document.body.appendChild(holder);
+    holder.select();
+    var done = false;
+    try { done = document.execCommand("copy"); } catch (e) { done = false; }
+    document.body.removeChild(holder);
+    if (done) { flashCopied(button, label); }
+    else {
+      button.textContent = "Copy failed";
+      window.setTimeout(function () { button.textContent = label; }, 1600);
+    }
+  }
+
+  function whereText(finding) {
+    return "line " + finding.line + ", col " + finding.column + " (offset " + finding.offset + ")";
+  }
+
+  function renderFindings(result) {
+    findingsEl.textContent = "";
+    var groups = groupFindings(result.findings);
+    if (groups.length === 0) {
+      findingsTitle.textContent = "Findings";
+      var none = el("div", "empty");
+      none.appendChild(el("h3", null, "No repairs were needed"));
+      none.appendChild(el("p", null, result.nativeParse
+        ? "The input parsed as valid JSON on the first attempt. Nothing was changed, and nothing was guessed."
+        : "No named failure mode matched. The only difference from strict JSON was outside the payload itself."));
+      findingsEl.appendChild(none);
+      return;
+    }
+    findingsTitle.textContent = "Findings (" + result.findings.length + " across " + groups.length +
+      " failure mode" + (groups.length === 1 ? "" : "s") + ")";
+
+    for (var g = 0; g < groups.length; g++) {
+      var group = groups[g];
+      var card = el("div", "finding cat-" + group.category);
+
+      var head = el("div", "finding-head");
+      head.appendChild(el("span", "finding-name", group.label));
+      var badgeText = group.occurrences.length === 1 ? "1 occurrence" : group.occurrences.length + " occurrences";
+      var suppressed = result.suppressed[group.code] || 0;
+      if (suppressed > 0) { badgeText += " (+" + suppressed + " not listed)"; }
+      head.appendChild(el("span", "badge", badgeText));
+      card.appendChild(head);
+
+      var list = el("ul", "occ");
+      for (var o = 0; o < group.occurrences.length; o++) {
+        var occ = group.occurrences[o];
+        var item = el("li");
+        item.appendChild(el("span", "where", whereText(occ)));
+        item.appendChild(document.createTextNode(" " + occ.what));
+        list.appendChild(item);
+      }
+      card.appendChild(list);
+
+      var prevent = el("p", "prevent");
+      prevent.appendChild(el("strong", null, "Prevent this: "));
+      prevent.appendChild(document.createTextNode(group.prevent));
+      card.appendChild(prevent);
+
+      findingsEl.appendChild(card);
+    }
+  }
+
+  function renderVerdict(result) {
+    verdictEl.textContent = "";
+    var card = el("div", "verdict");
+    var title;
+    var body;
+
+    if (result.status === "clean" && result.findings.length === 0 && result.nativeParse) {
+      card.classList.add("ok");
+      title = "Valid JSON, no repairs needed";
+      body = "The input parsed on the first try. Nothing was rewritten and nothing was guessed.";
+    } else if (result.status === "clean" && result.nativeParse) {
+      card.classList.add("repaired");
+      title = "Valid JSON, but a value was silently lost";
+      body = "JSON.parse accepts this input, so nothing was repaired. It still contains a duplicate key, " +
+        "and JSON.parse keeps only the last value for one without any warning. The finding below shows which " +
+        "key and where, so you can decide whether the dropped value mattered.";
+    } else if (result.status === "clean" && result.findings.length === 0) {
+      card.classList.add("repaired");
+      title = "Parsed, but not by JSON.parse";
+      body = "The strict parser rejected this input and the tolerant one accepted it without matching a named failure mode. " +
+        "That usually means stray bytes outside the JSON itself, such as a byte order mark or an unusual line separator.";
+    } else if (result.status === "repaired") {
+      card.classList.add("repaired");
+      var groupCount = groupFindings(result.findings).length;
+      title = "Repaired with " + result.findings.length + " fix" + (result.findings.length === 1 ? "" : "es");
+      body = "Across " + groupCount + " distinct failure mode" + (groupCount === 1 ? "" : "s") +
+        ". Every fix is an inference about intent, listed below with the change that prevents it next time.";
+    } else if (result.status === "empty") {
+      card.classList.add("fail");
+      title = "Nothing to repair";
+      body = "Paste the model output into the box above, or load the sample.";
+    } else {
+      card.classList.add("fail");
+      title = "Could not repair this input";
+      body = result.error ? result.error.message : "The input could not be interpreted as JSON.";
+    }
+
+    card.appendChild(el("h3", null, title));
+    card.appendChild(el("p", null, body));
+
+    var verifyLine = el("p", "verify-line");
+    if (result.verify.parsed) {
+      verifyLine.appendChild(el("span", "tick", "[ok]"));
+      var detail = " JSON.parse accepted the output. Top level: " + result.verify.topLevelType;
+      if (result.verify.count !== null) {
+        detail += " with " + result.verify.count + " " + result.verify.countLabel;
+      }
+      verifyLine.appendChild(document.createTextNode(detail + "."));
+    } else {
+      verifyLine.appendChild(el("span", "cross", "[no]"));
+      verifyLine.appendChild(document.createTextNode(" No verified output. Nothing is presented as repaired."));
+    }
+    card.appendChild(verifyLine);
+    verdictEl.appendChild(card);
+  }
+
+  function run() {
+    var raw = srcEl.value;
+    var result = repairLlmJson(raw);
+    current = result;
+
+    emptyEl.hidden = true;
+    resultsEl.hidden = false;
+
+    renderVerdict(result);
+
+    beforeEl.textContent = raw === "" ? "(empty)" : raw;
+    beforeMeta.textContent = raw.length + " characters as pasted";
+
+    if (result.ok) {
+      baPanels.hidden = false;
+      outPanel.hidden = false;
+      failPanel.hidden = true;
+      afterEl.textContent = result.pretty;
+      afterMeta.textContent = result.pretty.length + " characters, pretty-printed";
+      outEl.textContent = result.pretty;
+    } else {
+      baPanels.hidden = true;
+      outPanel.hidden = true;
+      failPanel.hidden = false;
+      afterEl.textContent = "";
+      afterMeta.textContent = "";
+      outEl.textContent = "";
+      var offset = result.error ? result.error.offset : 0;
+      failSnippet.textContent = raw.trim() === "" ? "(no input)" : contextSnippet(raw, offset);
+      failNote.textContent = result.unrecovered;
+    }
+
+    renderFindings(result);
+    /* cosmetic only: never let a missing or fussy scrollIntoView throw after
+       the results have already been rendered */
+    try {
+      if (typeof resultsEl.scrollIntoView === "function") {
+        resultsEl.scrollIntoView({ behavior: "smooth", block: "nearest" });
+      }
+    } catch (scrollError) { /* not important enough to report */ }
+  }
+
+  repairBtn.addEventListener("click", run);
+
+  sampleBtn.addEventListener("click", function () {
+    srcEl.value = llmJsonSample();
+    run();
+  });
+
+  clearBtn.addEventListener("click", function () {
+    srcEl.value = "";
+    current = null;
+    resultsEl.hidden = true;
+    emptyEl.hidden = false;
+    srcEl.focus();
+  });
+
+  srcEl.addEventListener("keydown", function (event) {
+    if ((event.ctrlKey || event.metaKey) && event.key === "Enter") {
+      event.preventDefault();
+      run();
+    }
+  });
+
+  copyPretty.addEventListener("click", function () {
+    if (current && current.ok) { copyText(current.pretty, copyPretty, "Copy pretty"); }
+  });
+  copyMin.addEventListener("click", function () {
+    if (current && current.ok) { copyText(current.minified, copyMin, "Copy minified"); }
+  });
+  copyReport.addEventListener("click", function () {
+    if (current) { copyText(buildReportMarkdown(current), copyReport, "Copy report"); }
+  });
+}
+
+initApp();
+</script>
+</body>
+</html>
