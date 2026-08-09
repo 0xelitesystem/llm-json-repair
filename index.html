@@ -212,6 +212,11 @@ code { font-family: var(--mono); font-size: 0.86em; background: var(--surface-3)
   margin-bottom: 1.1rem;
 }
 .empty h3 { color: var(--ink); margin-bottom: 0.4rem; }
+/* The empty-state heading is an h2 for outline order; keep the h3 look. */
+.empty h2 {
+  font-size: 1rem; font-weight: 600; letter-spacing: normal;
+  text-transform: none; color: var(--ink); margin-bottom: 0.4rem;
+}
 .empty ul { margin: 0.5rem 0 0 1.1rem; }
 .empty li { padding: 0.1rem 0; }
 .notes { border-top: 1px solid var(--rule); margin-top: 1.6rem; padding-top: 1.1rem; }
@@ -269,7 +274,7 @@ footer {
 </section>
 
 <div id="empty" class="empty">
-  <h3>Nothing to diagnose yet</h3>
+  <h2>Nothing to diagnose yet</h2>
   <p>Load the sample for a deliberately awful model response, or paste your own. Every repair this tool makes is reported as a named finding with a location, an explanation, and the fix that stops it recurring.</p>
   <ul>
     <li>Wrapping code fences, preamble prose, and trailing sign-off sentences</li>
