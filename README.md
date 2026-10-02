@@ -2,11 +2,20 @@
 
 Paste the broken JSON an LLM just handed you, get valid JSON back, plus a named diagnosis for every repair and the prompt change that prevents it next time.
 
+**Live demo:** https://0xelitesystem.github.io/llm-json-repair/
+
 Not a general JSON tool: [json-workbench](https://github.com/0xelitesystem/json-workbench) already covers formatting, tree browsing, querying, diffing and everyday tolerant parsing, while this repo is specifically about LLM output failure modes and the prompt-level fix for each one.
 
-## Live demo
+## Use
 
-https://0xelitesystem.github.io/llm-json-repair/
+1. Paste the model's response into the Model output box, or click Load sample.
+2. Click Repair and diagnose, or press Ctrl or Cmd + Enter.
+3. Read each named finding, where it applied, and its "prevent this" note.
+4. Click Copy pretty, Copy minified or Copy report.
+
+## Why this exists
+
+Models regularly return JSON wrapped in code fences, with trailing commas, or cut off mid-object, and the usual fix is a silent repair that hides what went wrong. This is a single HTML file with no tracking and no network calls that repairs the output, names every fix and points at the prompt change that prevents it, MIT licensed.
 
 ## Features
 
@@ -40,7 +49,20 @@ The core is a set of pure functions that take input and return a result object, 
 
 Everything runs in your browser. The text you paste is parsed locally by the JavaScript inside `index.html` and never leaves your machine. There is no server, no analytics, no telemetry, and no external dependencies of any kind, so there is nothing to upload to. You can confirm it by reading the source or by watching the network tab while you use the page.
 
-Model output often contains customer data, internal identifiers, or content under NDA. For anything sensitive, save `index.html` and open it offline.
+Model output often contains customer data, internal identifiers, or content under NDA. For anything sensitive, save `index.html` and open it offline. The one thing the page stores is your light or dark theme choice, saved in `localStorage` under the key `llm-json-repair-theme`.
+
+## Run locally
+
+```
+git clone https://github.com/0xelitesystem/llm-json-repair
+cd llm-json-repair
+```
+
+Open `index.html` in any modern browser. Or serve the folder with `python -m http.server` and visit http://localhost:8000.
+
+## Build
+
+No build step. The whole tool is one `index.html` with inline CSS and JavaScript and no dependencies.
 
 ## License
 
